@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.7-slim
 
 WORKDIR /app
 
@@ -6,10 +6,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python build tools
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir --upgrade pip==23.0.1 setuptools==65.5.1 wheel==0.38.4
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
