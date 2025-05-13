@@ -1,9 +1,10 @@
-fastapi==0.88.0
-uvicorn[standard]==0.20.0
-python-multipart==0.0.5
---index-url https://download.pytorch.org/whl/cpu
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cpu
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
 torch==2.1.2+cpu
 torchvision==0.16.2+cpu
-Pillow==9.3.0
-numpy==1.23.5
-python-dotenv==0.21.0 
+Pillow==10.2.0
+numpy==1.26.4
+python-dotenv==1.0.1 
