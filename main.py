@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import torch
 import torch.nn as nn
@@ -6,6 +6,8 @@ import torchvision.transforms as transforms
 from PIL import Image
 import io
 import logging
+import os
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,22 +34,32 @@ class CIFAR10CNN(nn.Module):
         return self.network(x)
 
 # Initialize FastAPI app
-app = FastAPI()
+app = FastAPI(title="CIFAR-10 Classifier API",
+             description="API for classifying images using a CIFAR-10 trained CNN model",
+             version="1.0.0")
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+# Define model path
+MODEL_PATH = os.getenv('MODEL_PATH', 'cifar10_model.pth')
 
 try:
     # Load the model
-    logger.info("Loading model...")
+    logger.info(f"Loading model from {MODEL_PATH}...")
     model = CIFAR10CNN()
-    model.load_state_dict(torch.load('cifar10_model.pth', map_location=torch.device('cpu')))
+    
+    # Check if model file exists
+    if not Path(MODEL_PATH).exists():
+        raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+    
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
     model.eval()
     logger.info("Model loaded successfully")
 except Exception as e:
@@ -56,9 +68,9 @@ except Exception as e:
 
 # Define image transformations
 transform = transforms.Compose([
-    transforms.Resize((32, 32)),  # CIFAR-10 images are 32x32
+    transforms.Resize((32, 32)),
     transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # Normalize for CIFAR-10
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
 # CIFAR-10 class names
@@ -80,15 +92,17 @@ async def root():
         }
     except Exception as e:
         logger.error(f"Error in root endpoint: {str(e)}")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
         logger.info("Predict endpoint called")
+        
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
         # Read and process the image
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
@@ -109,12 +123,16 @@ async def predict(file: UploadFile = File(...)):
         
         logger.info(f"Prediction successful: class {predicted_class}")
         return {
+            "status": "success",
             "predicted_class": predicted_class,
-            "class_name": classes[predicted_class]
+            "class_name": classes[predicted_class],
+            "confidence": float(torch.softmax(outputs, dim=1)[0][predicted_class].item())
         }
     except Exception as e:
         logger.error(f"Error in predict endpoint: {str(e)}")
-        return {
-            "status": "error",
-            "message": str(e)
-        } 
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"} 
