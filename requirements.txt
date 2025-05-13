@@ -1,8 +1,9 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
-torch==2.2.0
-torchvision==0.17.0
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.1.2+cpu
+torchvision==0.16.2+cpu
 Pillow==10.1.0
 numpy==1.24.3
 python-dotenv==1.0.0 
